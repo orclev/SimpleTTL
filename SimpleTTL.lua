@@ -42,6 +42,9 @@ function SimpleTTL:new(o)
 	o.totalKills = 0
 	o.cmaPathXp = 0
 	o.pathXp = 0
+	o.cmaPath = 0
+	o.totalPath = 0
+	o.path = 0
 	o.elder = false
     return o
 end
@@ -131,6 +134,7 @@ end
 
 function SimpleTTL:OnPathExperienceGained(nAmount, strText)
 	self.pathXp = self.pathXp + nAmount
+	self.path = self.path + 1
 end
 
 -----------------------------------------------------------------------------------------------
@@ -191,6 +195,10 @@ function SimpleTTL:AvgQuestXpPerSecond()
 	return self.cmaQuests * self.cmaQuestXp
 end
 
+function SimpleTTL:AvgPathXpPerSecond()
+	return self.cmaPathXp * self.cmaPath
+end
+
 function SimpleTTL:AvgKillXpPerSecond()
 	if GetRestXp() > 0 then
 		return self.cmaKills * (self.cmaXpPerKill * RESTED_MULT)
@@ -231,35 +239,48 @@ end
 
 function SimpleTTL:RollUpAverages()
 	local now = os.time() - self.t0
-	local avgKillXp = 0
-	local avgQuestXp = 0
-	local combinedKills = self.totalKills + self.kills
-	local combinedQuests = self.totalQuests + self.quests
-	if self.kills ~= 0 then
-		avgKillXp = self.killXp / self.kills
+	self:AveragePathXp(now)
+	self:AverageQuestXp(now)
+	self:AverageKillXp(now)
+	self:AverageClassXp(now)
+	self.t = now
+end
+
+function SimpleTTL:CalcCma(now, nXp, nNum, nCmaAvgXp, cmaAvgNum, nTotal)
+	local combinedTotal = nNum + nTotal
+	local cmaXp = 0
+	if combinedTotal > 0 then
+		cmaXp = (nTotal * nCmaAvgXp + nXp) / combinedTotal
 	end
-	if self.quests ~= 0 then
-		avgQuestXp = self.questXp / self.quests
-	end
-	if combinedQuests > 0 then
-		self.cmaQuestXp = (self.totalQuests * self.cmaQuestXp + self.questXp) / combinedQuests
-	end
-	self.cmaQuests = (self.t * self.cmaQuests + self.quests) / now
-	self.cmaClassXp = (self.t * self.cmaClassXp + self.classXp) / now
+	local cmaPerSecond = (self.t * cmaAvgNum + nNum) / now
+	return cmaXp, cmaPerSecond, combinedTotal
+end
+
+function SimpleTTL:AverageClassXp(now)
+	self.cmaClassXp, _, _ 
+		= self:CalcCma(now, self.classXp, 0, self.cmaClassXp, 0, self.t)
 	self.classXp = 0
-	if combinedKills > 0 then
-		self.cmaXpPerKill = (self.totalKills * self.cmaXpPerKill + self.killXp) / combinedKills
-	end
-	self.cmaKills = (self.t * self.cmaKills + self.kills) / now
-	self.killXp = 0
-	self.kills = 0
+end
+
+function SimpleTTL:AveragePathXp(now)
+	self.cmaPathXp, self.cmaPath, self.totalPath = 
+		self:CalcCma(now, self.pathXp, self.path, self.cmaPathXp, self.cmaPath, self.totalPath)
+	self.pathXp = 0
+	self.path = 0
+end
+
+function SimpleTTL:AverageQuestXp(now)
+	self.cmaQuestXp, self.cmaQuests, self.totalQuests =
+		self:CalcCma(now, self.questXp, self.quests, self.cmaQuestXp, self.cmaQuests, self.totalQuests)
 	self.questXp = 0
 	self.quests = 0
-	self.cmaPathXp = (self.t * self.cmaPathXp + self.pathXp) / now
-	self.pathXp = 0
-	self.t = now
-	self.totalKills = combinedKills
-	self.totalQuest = combinedQuests
+end
+
+function SimpleTTL:AverageKillXp(now)
+	self.cmaXpPerKill, self.cmaKills, self.totalKills =
+		self:CalcCma(now, self.killXp, self.kills, self.cmaXpPerKill, self.cmaKills, self.totalKills)
+	self.killXp = 0
+	self.kills = 0
 end
 
 function SimpleTTL:QuestsToLevel()

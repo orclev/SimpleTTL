@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="RKM" APIVersion="8" Name="SimpleTTL" Description="Provides a estimate for how long/how many kills you need to level.">
+    <Script Name="SimpleTTL.lua"/>
+    <Form Name="SimpleTTL.xml"/>
+</Addon>
